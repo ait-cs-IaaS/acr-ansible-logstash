@@ -1,0 +1,40 @@
+---
+
+- name: Get currently installed logstash version
+  ansible.builtin.shell:
+    cmd: /usr/share/logstash/bin/logstash --version || true
+  register: installed_version
+
+- ansible.builtin.set_fact:
+    logstash_is_installed: "{{ ('logstash ' + logstash_version) in installed_version.stdout }}"
+
+- ansible.builtin.debug:
+    msg: "Installing logstash {{ logstash_version }}... [be patient]"
+  when: not logstash_is_installed
+
+- name: Install logstash
+  become: true
+  ansible.builtin.apt:
+    deb: "{{ logstash_deb_url }}"
+  when: not logstash_is_installed
+
+- name: Copy jvm.options File
+  ansible.builtin.template:
+    src: jvm.options.j2
+    dest: "/etc/logstash/jvm.options"
+    mode: 0644
+    force: true
+
+- name: Ensure correct permissions on folder
+  ansible.builtin.file:
+    path: /var/lib/logstash
+    owner: logstash
+    group: logstash
+    recurse: true
+ 
+- name: Ensure logstash is started
+  ansible.builtin.service:
+    name: logstash
+    state: started
+    enabled: true
+    daemon_reload: true

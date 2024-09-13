@@ -1,71 +1,17 @@
 ---
 
-- name: Get currently installed logstash version
-  ansible.builtin.shell:
-    cmd: /usr/share/logstash/bin/logstash --version || true
-  register: installed_version
+- name: Include logstash installation
+  ansible.builtin.import_tasks: 
+    file: 01_install.yml
 
-- ansible.builtin.set_fact:
-    logstash_is_installed: "{{ ('logstash ' + logstash_version) in installed_version.stdout }}"
+- name: Include logstash plugins
+  ansible.builtin.import_tasks: 
+    file: 02_plugins.yml
 
-- ansible.builtin.debug:
-    msg: "Installing logstash ... [be patient]"
-  when: not logstash_is_installed
+- name: Include logstash config
+  ansible.builtin.import_tasks: 
+    file: 03_config.yml
 
-- name: Install logstash
-  become: true
-  ansible.builtin.apt:
-    deb: "{{ logstash_deb_url }}"
-  when: not logstash_is_installed
-
-- name: Copy jvm.options File
-  ansible.builtin.template:
-    src: jvm.options.j2
-    dest: "/etc/logstash/jvm.options"
-    mode: 0644
-    force: true
-
-- ansible.builtin.debug:
-    msg: "Verify logstash plugins is installed ... [be patient]"
-  when: logstash_is_installed
-
-- name: Get currently installed opensearch plugin
-  become: true
-  ansible.builtin.shell:
-    cmd: /usr/share/logstash/bin/logstash-plugin list || true
-  register: installed_plugins
-  when: logstash_is_installed
-
-- ansible.builtin.debug:
-    msg: "Installing logstash plugins ... [be patient]"
-
-- name: Install logstash opensearch plugin
-  become: true
-  ansible.builtin.command:
-    cmd: /usr/share/logstash/bin/logstash-plugin install {{ logstash_plugin }}
-  loop: "{{ logstash_plugins }}"
-  loop_control:
-    loop_var: logstash_plugin
-    label: 'Installed: {{ logstash_plugin }}'
-  when: logstash_plugin not in (installed_plugins.stdout | default(""))
-
-- name: Create logstash configuration file
-  ansible.builtin.template:
-    src: "{{ item }}"
-    dest: /etc/logstash/conf.d/{{ item | basename | regex_replace('^(.*).j2$', '\1') }}
-  loop: "{{ logstash_config_files }}"
-  notify: Restart logstash
- 
-- name: Ensure logstash is started
-  ansible.builtin.service:
-    name: logstash
-    state: started
-    enabled: true
-
-- name: Validate logstash configuration
-  become: true
-  ansible.builtin.command:
-    cmd: /usr/share/logstash/bin/logstash --path.settings /etc/logstash -t
-  register: logstash_config_check
-  failed_when: '"Config Validation Result: OK" not in logstash_config_check.stdout' 
-
+- name: Include logstash checks
+  ansible.builtin.import_tasks: 
+    file: 04_checks.yml

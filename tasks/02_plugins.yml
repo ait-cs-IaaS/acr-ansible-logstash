@@ -1,0 +1,28 @@
+---
+
+- name: Wait for logstash to startup
+  ansible.builtin.wait_for:
+    port: 9600
+    delay: 5
+    connect_timeout: 1
+    timeout: 120
+
+- name: Get currently installed opensearch plugin
+  become: true
+  ansible.builtin.shell:
+    cmd: curl localhost:9600/_node/plugins
+  register: installed_plugins
+  when: logstash_is_installed
+
+- ansible.builtin.debug:
+    msg: "Installing logstash plugins ... [be patient]"
+
+- name: Install logstash opensearch plugin
+  become: true
+  ansible.builtin.command:
+    cmd: /usr/share/logstash/bin/logstash-plugin install {{ logstash_plugin }}
+  loop: "{{ logstash_plugins }}"
+  loop_control:
+    loop_var: logstash_plugin
+    label: 'Installed: {{ logstash_plugin }}'
+  when: logstash_plugin not in (installed_plugins.stdout | default(""))

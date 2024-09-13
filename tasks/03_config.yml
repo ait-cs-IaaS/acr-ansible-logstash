@@ -1,0 +1,8 @@
+---
+
+- name: Create logstash configuration file
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: /etc/logstash/conf.d/{{ item | basename | regex_replace('^(.*).j2$', '\1') }}
+  loop: "{{ logstash_config_files }}"
+  notify: Restart logstash

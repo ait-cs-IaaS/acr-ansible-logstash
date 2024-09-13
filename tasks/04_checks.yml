@@ -1,0 +1,9 @@
+---
+
+- name: Validate logstash configuration
+  become: true
+  ansible.builtin.command:
+    cmd: /usr/share/logstash/bin/logstash --path.settings /etc/logstash -t
+  register: logstash_config_check
+  failed_when: '"Config Validation Result: OK" not in logstash_config_check.stdout' 
+
